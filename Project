@@ -1,10 +1,395 @@
-#include <iostream>
-#include <stdio.h>
-#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
 
-int main()
-{
+#define MAX_CITIES 400
+#define MAX_NAME_LEN 200
+#define MAX_LINE 512
+
+int cityCount = 0;
+char cities[MAX_CITIES][MAX_NAME_LEN];
+int adj[MAX_CITIES][MAX_CITIES]; 
+int reachableFrom[MAX_CITIES]; 
+
+
+void trim(char *s) {
+    int i = 0, j = (int)strlen(s) - 1;
+    while (i <= j && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')) i++;
+    while (j >= i && (s[j] == ' ' || s[j] == '\t' || s[j] == '\r' || s[j] == '\n')) { s[j]=0; j--; }
+    if (i > 0) {
+        int k = 0;
+        while (s[i]) { s[k++] = s[i++]; }
+        s[k] = 0;
+    }
+}
+
+// find existing city index or add new one
+int find_or_add_city(const char *name) {
+    for (int i = 0; i < cityCount; ++i) {
+        if (strcmp(cities[i], name) == 0) return i;
+    }
+    if (cityCount >= MAX_CITIES) {
+        printf("Exceeded max cities (%d)\\n", MAX_CITIES);
+        exit(1);
+    }
+    strncpy(cities[cityCount], name, MAX_NAME_LEN-1);
+    cities[cityCount][MAX_NAME_LEN-1] = 0;
+    cityCount++;
+    return cityCount - 1;
+}
+
+void add_edge(int a, int b) {
+    if (a < 0 || b < 0) return;
+    adj[a][b] = 1;
+    
+}
+
+// parse flight.txt
+void parse_file(const char *filename) {
+    printf("Opening file: %s in current directory...\n", filename);
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        perror("Error");
+        printf("Cannot open %s\\n", filename);
+        exit(1);
+    }
+    char line[MAX_LINE];
+    int currentFrom = -1;
+    int mode = 0; 
+    while (fgets(line, sizeof(line), f)) {
+        // remove trailing newline
+        trim(line);
+        if (strlen(line) == 0) { mode = 0; continue; }
+        if (strncmp(line, "From:", 5) == 0) {
+            char tmp[MAX_NAME_LEN];
+            strcpy(tmp, line + 5);
+            trim(tmp);
+            currentFrom = find_or_add_city(tmp);
+            mode = 0;
+            continue;
+        }
+        if (strncmp(line, "To", 2) == 0) {
+            
+            char *p = strchr(line, ':');
+            if (!p) continue;
+            char tmp[MAX_NAME_LEN];
+            strcpy(tmp, p+1);
+            trim(tmp);
+            if (strlen(tmp) > 0) {
+                int idx = find_or_add_city(tmp);
+                add_edge(currentFrom, idx);
+            }
+            mode = 1; 
+            continue;
+        }
+        
+        if (mode == 1) {
+            char tmp[MAX_NAME_LEN];
+            strcpy(tmp, line);
+            trim(tmp);
+            if (strlen(tmp) > 0) {
+                int idx = find_or_add_city(tmp);
+                add_edge(currentFrom, idx);
+            }
+            continue;
+        }
+        // otherwise ignore
+    }
+    fclose(f);
+}
+
+
+int bfs(int src, int dst, int parent[], int dist[]) {
+    for (int i = 0; i < cityCount; ++i) { parent[i] = -1; dist[i] = -1; }
+    int q[MAX_CITIES];
+    int head = 0, tail = 0;
+    q[tail++] = src;
+    dist[src] = 0;
+    parent[src] = -1;
+    while (head < tail) {
+        int u = q[head++];
+        if (u == dst) break;
+        for (int v = 0; v < cityCount; ++v) {
+            if (adj[u][v] && dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                parent[v] = u;
+                q[tail++] = v;
+            }
+        }
+    }
+    return dist[dst];
+}
+
+
+int reconstruct_path(int src, int dst, int parent[], int out[], int *outlen) {
+    if (dst < 0 || parent[dst] == -2) { *outlen = 0; return 0; }
+    int tmp[MAX_CITIES]; int t = 0;
+    int cur = dst;
+    if (parent[cur] == -1 && cur != src && cur != src) {
+        // unreachable
+        *outlen = 0; return 0;
+    }
+    while (cur != -1) {
+        tmp[t++] = cur;
+        if (cur == src) break;
+        cur = parent[cur];
+    }
+    // reverse
+    int k = 0;
+    for (int i = t-1; i >= 0; --i) {
+        out[k++] = tmp[i];
+    }
+    *outlen = k;
+    return 1;
+}
+
+// print path
+void print_path(int arr[], int len) {
+    for (int i = 0; i < len; ++i) {
+        printf("%s", cities[arr[i]]);
+        if (i+1 < len) printf(" to ");
+    }
+    printf("\\n");
+}
+
+
+void do_q1(int argc, char *argv[]) {
+    if (argc < 5) {
+        printf("Usage: routeSearch 1 <city_A> <city_B> <num_connection>\\n");
+        return;
+    }
+    
+    char *cityA = argv[2];
+    char *cityB = argv[3];
+    int maxconn = atoi(argv[4]);
+    int a = -1, b = -1;
+    for (int i = 0; i < cityCount; ++i) {
+        if (strcmp(cities[i], cityA) == 0) a = i;
+        if (strcmp(cities[i], cityB) == 0) b = i;
+    }
+    if (a == -1 || b == -1) {
+        printf("One or both cities not found. Make sure names match flight.txt exactly.\\n");
+        return;
+    }
+    int parent[MAX_CITIES], dist[MAX_CITIES];
+    int d = bfs(a, b, parent, dist);
+    if (d == -1) {
+        printf("No route from %s to %s\\n", cityA, cityB);
+        return;
+    }
+    if (d > maxconn) {
+        printf("No route with less than or equal to %d connections (shortest has %d).\\n", maxconn, d);
+        return;
+    }
+    int path[MAX_CITIES], plen=0;
+    reconstruct_path(a, b, parent, path, &plen);
+    print_path(path, plen);
+    printf("total connection: %d\\n", d);
+}
+
+
+int join_paths(int p1[], int l1, int p2[], int l2, int out[], int *outlen) {
+    // p1: ... X ; p2: X ... ; join at X
+    if (l1 == 0 || l2 == 0) { *outlen = 0; return 0; }
+    if (p1[l1-1] != p2[0]) { *outlen = 0; return 0; }
+    int k=0;
+    for (int i=0;i<l1;i++) out[k++] = p1[i];
+    for (int j=1;j<l2;j++) out[k++] = p2[j];
+    *outlen = k;
+    return 1;
+}
+
+
+void do_q2(int argc, char *argv[]) {
+    // expected: routeSearch 2 <city_A> through <city_B> and <city_C> to <city_D>
+    
+    if (argc < 9) {
+        printf("Usage: routeSearch 2 <city_A> through <city_B> and <city_C> to <city_D>\\n");
+        return;
+    }
+    char *cityA = argv[2];
+    char *cityB = argv[4];
+    char *cityC = argv[6];
+    char *cityD = argv[8];
+    int ai=-1, bi=-1, ci=-1, di=-1;
+    for (int i=0;i<cityCount;i++){
+        if (strcmp(cities[i], cityA)==0) ai=i;
+        if (strcmp(cities[i], cityB)==0) bi=i;
+        if (strcmp(cities[i], cityC)==0) ci=i;
+        if (strcmp(cities[i], cityD)==0) di=i;
+    }
+    if (ai==-1||bi==-1||ci==-1||di==-1) {
+        printf("One or more cities not found. Make sure names match flight.txt exactly.\\n"); return;
+    }
+    int parent[MAX_CITIES], dist[MAX_CITIES];
+    // Try order A->B->C->D
+    int success = 0;
+    int bestLen = 1000000;
+    int bestPath[MAX_CITIES], bestPLen=0;
+    // helper buffers
+    int p1[MAX_CITIES], l1, p2[MAX_CITIES], l2, p3[MAX_CITIES], l3;
+    // A->B
+    if (bfs(ai, bi, parent, dist) != -1) {
+        reconstruct_path(ai, bi, parent, p1, &l1);
+        // B->C
+        if (bfs(bi, ci, parent, dist) != -1) {
+            reconstruct_path(bi, ci, parent, p2, &l2);
+            // C->D
+            if (bfs(ci, di, parent, dist) != -1) {
+                reconstruct_path(ci, di, parent, p3, &l3);
+                // join p1+p2+p3
+                int t1[MAX_CITIES], tl1;
+                if (join_paths(p1,l1,p2,l2,t1,&tl1)) {
+                    int out[MAX_CITIES], ol;
+                    if (join_paths(t1,tl1,p3,l3,out,&ol)) {
+                        int connections = ol - 1;
+                        if (connections < bestLen) {
+                            bestLen = connections; bestPLen = ol;
+                            for (int i=0;i<ol;i++) bestPath[i]=out[i];
+                            success = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Try order A->C->B->D
+    if (bfs(ai, ci, parent, dist) != -1) {
+        reconstruct_path(ai, ci, parent, p1, &l1);
+        if (bfs(ci, bi, parent, dist) != -1) {
+            reconstruct_path(ci, bi, parent, p2, &l2);
+            if (bfs(bi, di, parent, dist) != -1) {
+                reconstruct_path(bi, di, parent, p3, &l3);
+                int t1[MAX_CITIES], tl1;
+                if (join_paths(p1,l1,p2,l2,t1,&tl1)) {
+                    int out[MAX_CITIES], ol;
+                    if (join_paths(t1,tl1,p3,l3,out,&ol)) {
+                        int connections = ol - 1;
+                        if (connections < bestLen) {
+                            bestLen = connections; bestPLen = ol;
+                            for (int i=0;i<ol;i++) bestPath[i]=out[i];
+                            success = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!success) {
+        printf("No route that goes from %s to %s through %s and %s\\n", cityA, cityD, cityB, cityC);
+        return;
+    }
+    print_path(bestPath, bestPLen);
+    printf("smallest number of connection: %d\\n", bestLen);
+}
+
+
+int visited[MAX_CITIES];
+int tour[MAX_CITIES*2];
+int tour_len;
+void dfs_build(int u) {
+    visited[u]=1;
+    tour[tour_len++]=u;
+    for (int v=0; v<cityCount; ++v) {
+        if (adj[u][v] && !visited[v]) {
+            dfs_build(v);
+            // after returning, go back to u in tour
+            tour[tour_len++]=u;
+        }
+    }
+}
+
+void do_q3(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Usage: routeSearch 3 <city_A>\\n"); return;
+    }
+    char *cityA = argv[2];
+    int ai=-1;
+    for (int i=0;i<cityCount;i++) if (strcmp(cities[i], cityA)==0) ai=i;
+    if (ai==-1) { printf("City not found.\\n"); return; }
+    // reset
+    for (int i=0;i<cityCount;i++) visited[i]=0;
+    tour_len = 0;
+    dfs_build(ai);
+    
+    if (tour_len == 0) { printf("No reachable cities from %s\\n", cityA); return; }
+    print_path(tour, tour_len);
+    int connections = tour_len - 1;
+    printf("smallest number of connection: %d\\n", connections);
+    printf("\\nNote: This route is a simple DFS-based tour (beginner-friendly heuristic). It may not be optimal for all graphs.\\n");
+}
+
+
+void do_q4(int argc, char *argv[]) {
+    if (argc < 5) {
+        printf("Usage: routeSearch 4 <city_A> <city_B> <city_C>\\n"); return;
+    }
+    char *A = argv[2], *B = argv[3], *C = argv[4];
+    int ai=-1, bi=-1, ci=-1;
+    for (int i=0;i<cityCount;i++) {
+        if (strcmp(cities[i], A)==0) ai=i;
+        if (strcmp(cities[i], B)==0) bi=i;
+        if (strcmp(cities[i], C)==0) ci=i;
+    }
+    if (ai==-1||bi==-1||ci==-1) { printf("One or more cities not found.\\n"); return; }
+    // compute distances and parents from A,B,C
+    int parentA[MAX_CITIES], distA[MAX_CITIES];
+    int parentB[MAX_CITIES], distB[MAX_CITIES];
+    int parentC[MAX_CITIES], distC[MAX_CITIES];
+    bfs(ai, -1, parentA, distA); 
     
 
+   
+    auto bfs_full = [&](int src, int parent[], int dist[]) {
+        for (int i=0;i<cityCount;i++) { parent[i]=-1; dist[i]=-1; }
+        int q[MAX_CITIES]; int head=0, tail=0;
+        q[tail++]=src; dist[src]=0; parent[src]=-1;
+        while (head<tail) {
+            int u=q[head++];
+            for (int v=0; v<cityCount; ++v) {
+                if (adj[u][v] && dist[v]==-1) {
+                    dist[v]=dist[u]+1; parent[v]=u; q[tail++]=v;
+                }
+            }
+        }
+    };
+    bfs_full(ai, parentA, distA);
+    bfs_full(bi, parentB, distB);
+    bfs_full(ci, parentC, distC);
+
+    int best = -1; int bestSum = 1000000;
+    for (int candidate=0; candidate<cityCount; ++candidate) {
+        if (candidate==ai || candidate==bi || candidate==ci) continue;
+        if (distA[candidate]==-1 || distB[candidate]==-1 || distC[candidate]==-1) continue;
+        int sum = distA[candidate] + distB[candidate] + distC[candidate];
+        if (sum < bestSum) { bestSum = sum; best = candidate; }
+    }
+    if (best == -1) { printf("No meeting city reachable by all three.\\n"); return; }
+    printf("You three should meet at %s\\n", cities[best]);
+    int path[MAX_CITIES], plen=0;
+    reconstruct_path(ai, best, parentA, path, &plen);
+    printf("Route for first person: "); print_path(path, plen); printf(" (%d connections)\\n", distA[best]);
+    reconstruct_path(bi, best, parentB, path, &plen);
+    printf("Route for second person: "); print_path(path, plen); printf(" (%d connections)\\n", distB[best]);
+    reconstruct_path(ci, best, parentC, path, &plen);
+    printf("Route for third person: "); print_path(path, plen); printf(" (%d connections)\\n", distC[best]);
+    printf("Total number of connection: %d\\n", bestSum);
+}
+
+int main(int argc, char *argv[]) {
+    // initialize
+    for (int i=0;i<MAX_CITIES;i++) for (int j=0;j<MAX_CITIES;j++) adj[i][j]=0;
+    parse_file("flight.txt");
+    if (argc < 2) {
+        printf("Usage: routeSearch <question#> [parameters]\\n");
+        return 0;
+    }
+    int q = atoi(argv[1]);
+    if (q == 1) do_q1(argc, argv);
+    else if (q == 2) do_q2(argc, argv);
+    else if (q == 3) do_q3(argc, argv);
+    else if (q == 4) do_q4(argc, argv);
+    else printf("Question number must be 1,2,3 or 4\\n");
     return 0;
 }
