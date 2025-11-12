@@ -1,395 +1,281 @@
-#include <cstdio>
-#include <cstring>
-#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <queue>
+#include <algorithm>
+#include <cctype>
+#include <sstream>
 
-#define MAX_CITIES 400
-#define MAX_NAME_LEN 200
-#define MAX_LINE 512
-
-int cityCount = 0;
-char cities[MAX_CITIES][MAX_NAME_LEN];
-int adj[MAX_CITIES][MAX_CITIES]; 
-int reachableFrom[MAX_CITIES]; 
+using namespace std;
 
 
-void trim(char *s) {
-    int i = 0, j = (int)strlen(s) - 1;
-    while (i <= j && (s[i] == ' ' || s[i] == '\t' || s[i] == '\r' || s[i] == '\n')) i++;
-    while (j >= i && (s[j] == ' ' || s[j] == '\t' || s[j] == '\r' || s[j] == '\n')) { s[j]=0; j--; }
-    if (i > 0) {
-        int k = 0;
-        while (s[i]) { s[k++] = s[i++]; }
-        s[k] = 0;
-    }
+static inline string ltrim(string s) {
+    s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch){ return !isspace(ch); }));
+    return s;
+}
+static inline string rtrim(string s) {
+    s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !isspace(ch); }).base(), s.end());
+    return s;
+}
+static inline string trim(string s) { return rtrim(ltrim(s)); }
+
+
+vector<string> names;
+unordered_map<string,int> idx;
+vector<vector<int>> adj;
+
+// add city and return index
+int get_index(const string &name) {
+    auto it = idx.find(name);
+    if (it != idx.end()) return it->second;
+    int id = (int)names.size();
+    names.push_back(name);
+    idx[name] = id;
+    adj.emplace_back();
+    return id;
 }
 
-// find existing city index or add new one
-int find_or_add_city(const char *name) {
-    for (int i = 0; i < cityCount; ++i) {
-        if (strcmp(cities[i], name) == 0) return i;
-    }
-    if (cityCount >= MAX_CITIES) {
-        printf("Exceeded max cities (%d)\\n", MAX_CITIES);
-        exit(1);
-    }
-    strncpy(cities[cityCount], name, MAX_NAME_LEN-1);
-    cities[cityCount][MAX_NAME_LEN-1] = 0;
-    cityCount++;
-    return cityCount - 1;
-}
 
-void add_edge(int a, int b) {
-    if (a < 0 || b < 0) return;
-    adj[a][b] = 1;
-    
-}
-
-// parse flight.txt
-void parse_file(const char *filename) {
-    printf("Opening file: %s in current directory...\n", filename);
-    FILE *f = fopen(filename, "r");
-    if (!f) {
-        perror("Error");
-        printf("Cannot open %s\\n", filename);
-        exit(1);
+bool parse_file(const string &filename) {
+    ifstream fin(filename);
+    if (!fin.is_open()) {
+        cerr << "Cannot open " << filename << endl;
+        return false;
     }
-    char line[MAX_LINE];
-    int currentFrom = -1;
-    int mode = 0; 
-    while (fgets(line, sizeof(line), f)) {
-        // remove trailing newline
-        trim(line);
-        if (strlen(line) == 0) { mode = 0; continue; }
-        if (strncmp(line, "From:", 5) == 0) {
-            char tmp[MAX_NAME_LEN];
-            strcpy(tmp, line + 5);
-            trim(tmp);
-            currentFrom = find_or_add_city(tmp);
-            mode = 0;
-            continue;
-        }
-        if (strncmp(line, "To", 2) == 0) {
-            
-            char *p = strchr(line, ':');
-            if (!p) continue;
-            char tmp[MAX_NAME_LEN];
-            strcpy(tmp, p+1);
-            trim(tmp);
-            if (strlen(tmp) > 0) {
-                int idx = find_or_add_city(tmp);
-                add_edge(currentFrom, idx);
+    string line;
+    int current = -1;
+    bool expectTo = false;
+    while (getline(fin, line)) {
+        string s = trim(line);
+        if (s.empty()) { expectTo = false; continue; }
+        if (s.rfind("From:", 0) == 0) {
+            string city = trim(s.substr(5));
+            current = get_index(city);
+            expectTo = false;
+        } else if (s.rfind("To", 0) == 0) {
+            // find colon
+            auto pos = s.find(':');
+            if (pos != string::npos) {
+                string rest = trim(s.substr(pos+1));
+                if (!rest.empty()) {
+                    int id = get_index(rest);
+                    if (current >= 0) adj[current].push_back(id);
+                }
             }
-            mode = 1; 
-            continue;
-        }
-        
-        if (mode == 1) {
-            char tmp[MAX_NAME_LEN];
-            strcpy(tmp, line);
-            trim(tmp);
-            if (strlen(tmp) > 0) {
-                int idx = find_or_add_city(tmp);
-                add_edge(currentFrom, idx);
+            expectTo = true;
+        } else if (expectTo) {
+            // continuation destination line
+            string city = s;
+            if (!city.empty()) {
+                int id = get_index(city);
+                if (current >= 0) adj[current].push_back(id);
             }
-            continue;
         }
-        // otherwise ignore
     }
-    fclose(f);
+    fin.close();
+    return true;
 }
 
 
-int bfs(int src, int dst, int parent[], int dist[]) {
-    for (int i = 0; i < cityCount; ++i) { parent[i] = -1; dist[i] = -1; }
-    int q[MAX_CITIES];
-    int head = 0, tail = 0;
-    q[tail++] = src;
-    dist[src] = 0;
-    parent[src] = -1;
-    while (head < tail) {
-        int u = q[head++];
+vector<int> bfs_path(int src, int dst) {
+    if (src < 0 || dst < 0) return {};
+    int n = (int)names.size();
+    vector<int> parent(n, -1);
+    vector<int> dist(n, -1);
+    queue<int> q;
+    q.push(src); dist[src] = 0;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
         if (u == dst) break;
-        for (int v = 0; v < cityCount; ++v) {
-            if (adj[u][v] && dist[v] == -1) {
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {
                 dist[v] = dist[u] + 1;
                 parent[v] = u;
-                q[tail++] = v;
+                q.push(v);
             }
         }
     }
-    return dist[dst];
+    if (dist[dst] == -1) return {};
+    vector<int> path;
+    for (int cur = dst; cur != -1; cur = parent[cur]) path.push_back(cur);
+    reverse(path.begin(), path.end());
+    return path;
+}
+
+void print_path_indices(const vector<int>& path) {
+    for (size_t i = 0; i < path.size(); ++i) {
+        cout << names[path[i]];
+        if (i + 1 < path.size()) cout << " to ";
+    }
+    cout << "\n";
+}
+
+// Question 1
+void q1() {
+    cout << "Enter source city (exactly as in file):\n> ";
+    string A; getline(cin, A); A = trim(A);
+    cout << "Enter destination city:\n> ";
+    string B; getline(cin, B); B = trim(B);
+    cout << "Enter maximum allowed connections (integer):\n> ";
+    string tmp; getline(cin, tmp); int maxconn = stoi(trim(tmp));
+    if (idx.find(A) == idx.end() || idx.find(B) == idx.end()) { cout << "One or both cities not found.\n"; return; }
+    int a = idx[A], b = idx[B];
+    auto path = bfs_path(a,b);
+    if (path.empty()) { cout << "No route from " << A << " to " << B << "\n"; return; }
+    int connections = (int)path.size() - 1;
+    if (connections > maxconn) {
+        cout << "No route with less than or equal to " << maxconn << " connections (shortest has " << connections << ").\n";
+        return;
+    }
+    print_path_indices(path);
+    cout << "total connection: " << connections << "\n";
 }
 
 
-int reconstruct_path(int src, int dst, int parent[], int out[], int *outlen) {
-    if (dst < 0 || parent[dst] == -2) { *outlen = 0; return 0; }
-    int tmp[MAX_CITIES]; int t = 0;
-    int cur = dst;
-    if (parent[cur] == -1 && cur != src && cur != src) {
-        // unreachable
-        *outlen = 0; return 0;
-    }
-    while (cur != -1) {
-        tmp[t++] = cur;
-        if (cur == src) break;
-        cur = parent[cur];
-    }
-    // reverse
-    int k = 0;
-    for (int i = t-1; i >= 0; --i) {
-        out[k++] = tmp[i];
-    }
-    *outlen = k;
-    return 1;
+vector<int> join_paths(const vector<int>& p1, const vector<int>& p2) {
+    if (p1.empty() || p2.empty()) return {};
+    if (p1.back() != p2.front()) return {};
+    vector<int> out = p1;
+    out.insert(out.end(), p2.begin()+1, p2.end());
+    return out;
 }
 
-// print path
-void print_path(int arr[], int len) {
-    for (int i = 0; i < len; ++i) {
-        printf("%s", cities[arr[i]]);
-        if (i+1 < len) printf(" to ");
+// Question 2: A -> D through B and C
+void q2() {
+    cout << "Enter city A (start):\n> "; string A; getline(cin, A); A = trim(A);
+    cout << "Enter city B (must visit):\n> "; string B; getline(cin, B); B = trim(B);
+    cout << "Enter city C (must visit):\n> "; string C; getline(cin, C); C = trim(C);
+    cout << "Enter city D (destination):\n> "; string D; getline(cin, D); D = trim(D);
+    if (idx.find(A)==idx.end() || idx.find(B)==idx.end() || idx.find(C)==idx.end() || idx.find(D)==idx.end()) {
+        cout << "One or more cities not found.\n"; return;
     }
-    printf("\\n");
+    int a = idx[A], b = idx[B], c = idx[C], d = idx[D];
+    bool success = false;
+    vector<int> best; int bestConn = INT_MAX;
+    // order A->B->C->D
+    auto p1 = bfs_path(a,b);
+    auto p2 = bfs_path(b,c);
+    auto p3 = bfs_path(c,d);
+    if (!p1.empty() && !p2.empty() && !p3.empty()) {
+        auto t = join_paths(join_paths(p1,p2), p3);
+        if (!t.empty()) { int conn = (int)t.size()-1; if (conn < bestConn) { bestConn = conn; best = t; success = true; } }
+    }
+    // order A->C->B->D
+    p1 = bfs_path(a,c);
+    p2 = bfs_path(c,b);
+    p3 = bfs_path(b,d);
+    if (!p1.empty() && !p2.empty() && !p3.empty()) {
+        auto t = join_paths(join_paths(p1,p2), p3);
+        if (!t.empty()) { int conn = (int)t.size()-1; if (conn < bestConn) { bestConn = conn; best = t; success = true; } }
+    }
+    if (!success) { cout << "No route that goes from " << A << " to " << D << " through " << B << " and " << C << "\n"; return; }
+    print_path_indices(best);
+    cout << "smallest number of connection: " << bestConn << "\n";
 }
 
-
-void do_q1(int argc, char *argv[]) {
-    if (argc < 5) {
-        printf("Usage: routeSearch 1 <city_A> <city_B> <num_connection>\\n");
-        return;
+// DFS based tour for question 3
+void dfs_tour(int u, vector<int>& visited, vector<int>& tour) {
+    visited[u] = 1;
+    tour.push_back(u);
+    for (int v : adj[u]) {
+        if (!visited[v]) {
+            dfs_tour(v, visited, tour);
+            // return to u in the tour after exploring v subtree
+            tour.push_back(u);
+        }
     }
-    
-    char *cityA = argv[2];
-    char *cityB = argv[3];
-    int maxconn = atoi(argv[4]);
-    int a = -1, b = -1;
-    for (int i = 0; i < cityCount; ++i) {
-        if (strcmp(cities[i], cityA) == 0) a = i;
-        if (strcmp(cities[i], cityB) == 0) b = i;
-    }
-    if (a == -1 || b == -1) {
-        printf("One or both cities not found. Make sure names match flight.txt exactly.\\n");
-        return;
-    }
-    int parent[MAX_CITIES], dist[MAX_CITIES];
-    int d = bfs(a, b, parent, dist);
-    if (d == -1) {
-        printf("No route from %s to %s\\n", cityA, cityB);
-        return;
-    }
-    if (d > maxconn) {
-        printf("No route with less than or equal to %d connections (shortest has %d).\\n", maxconn, d);
-        return;
-    }
-    int path[MAX_CITIES], plen=0;
-    reconstruct_path(a, b, parent, path, &plen);
-    print_path(path, plen);
-    printf("total connection: %d\\n", d);
 }
 
-
-int join_paths(int p1[], int l1, int p2[], int l2, int out[], int *outlen) {
-    // p1: ... X ; p2: X ... ; join at X
-    if (l1 == 0 || l2 == 0) { *outlen = 0; return 0; }
-    if (p1[l1-1] != p2[0]) { *outlen = 0; return 0; }
-    int k=0;
-    for (int i=0;i<l1;i++) out[k++] = p1[i];
-    for (int j=1;j<l2;j++) out[k++] = p2[j];
-    *outlen = k;
-    return 1;
+void q3() {
+    cout << "Enter start city A:\n> "; string A; getline(cin, A); A = trim(A);
+    if (idx.find(A) == idx.end()) { cout << "City not found.\n"; return; }
+    int a = idx[A];
+    int n = (int)names.size();
+    vector<int> visited(n,0), tour;
+    dfs_tour(a, visited, tour);
+    if (tour.empty()) { cout << "No reachable cities from " << A << "\n"; return; }
+    print_path_indices(tour);
+    cout << "smallest number of connection: " << ((int)tour.size() - 1) << "\n";
+    cout << "\nNote: This route is a simple DFS-based heuristic and may not be optimal.\n";
 }
 
 
-void do_q2(int argc, char *argv[]) {
-    // expected: routeSearch 2 <city_A> through <city_B> and <city_C> to <city_D>
-    
-    if (argc < 9) {
-        printf("Usage: routeSearch 2 <city_A> through <city_B> and <city_C> to <city_D>\\n");
-        return;
-    }
-    char *cityA = argv[2];
-    char *cityB = argv[4];
-    char *cityC = argv[6];
-    char *cityD = argv[8];
-    int ai=-1, bi=-1, ci=-1, di=-1;
-    for (int i=0;i<cityCount;i++){
-        if (strcmp(cities[i], cityA)==0) ai=i;
-        if (strcmp(cities[i], cityB)==0) bi=i;
-        if (strcmp(cities[i], cityC)==0) ci=i;
-        if (strcmp(cities[i], cityD)==0) di=i;
-    }
-    if (ai==-1||bi==-1||ci==-1||di==-1) {
-        printf("One or more cities not found. Make sure names match flight.txt exactly.\\n"); return;
-    }
-    int parent[MAX_CITIES], dist[MAX_CITIES];
-    // Try order A->B->C->D
-    int success = 0;
-    int bestLen = 1000000;
-    int bestPath[MAX_CITIES], bestPLen=0;
-    // helper buffers
-    int p1[MAX_CITIES], l1, p2[MAX_CITIES], l2, p3[MAX_CITIES], l3;
-    // A->B
-    if (bfs(ai, bi, parent, dist) != -1) {
-        reconstruct_path(ai, bi, parent, p1, &l1);
-        // B->C
-        if (bfs(bi, ci, parent, dist) != -1) {
-            reconstruct_path(bi, ci, parent, p2, &l2);
-            // C->D
-            if (bfs(ci, di, parent, dist) != -1) {
-                reconstruct_path(ci, di, parent, p3, &l3);
-                // join p1+p2+p3
-                int t1[MAX_CITIES], tl1;
-                if (join_paths(p1,l1,p2,l2,t1,&tl1)) {
-                    int out[MAX_CITIES], ol;
-                    if (join_paths(t1,tl1,p3,l3,out,&ol)) {
-                        int connections = ol - 1;
-                        if (connections < bestLen) {
-                            bestLen = connections; bestPLen = ol;
-                            for (int i=0;i<ol;i++) bestPath[i]=out[i];
-                            success = 1;
-                        }
-                    }
-                }
+void bfs_full(int src, vector<int>& dist, vector<int>& parent) {
+    int n = (int)names.size();
+    dist.assign(n, -1); parent.assign(n, -1);
+    queue<int> q;
+    q.push(src); dist[src] = 0;
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                parent[v] = u;
+                q.push(v);
             }
         }
     }
-    // Try order A->C->B->D
-    if (bfs(ai, ci, parent, dist) != -1) {
-        reconstruct_path(ai, ci, parent, p1, &l1);
-        if (bfs(ci, bi, parent, dist) != -1) {
-            reconstruct_path(ci, bi, parent, p2, &l2);
-            if (bfs(bi, di, parent, dist) != -1) {
-                reconstruct_path(bi, di, parent, p3, &l3);
-                int t1[MAX_CITIES], tl1;
-                if (join_paths(p1,l1,p2,l2,t1,&tl1)) {
-                    int out[MAX_CITIES], ol;
-                    if (join_paths(t1,tl1,p3,l3,out,&ol)) {
-                        int connections = ol - 1;
-                        if (connections < bestLen) {
-                            bestLen = connections; bestPLen = ol;
-                            for (int i=0;i<ol;i++) bestPath[i]=out[i];
-                            success = 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (!success) {
-        printf("No route that goes from %s to %s through %s and %s\\n", cityA, cityD, cityB, cityC);
-        return;
-    }
-    print_path(bestPath, bestPLen);
-    printf("smallest number of connection: %d\\n", bestLen);
 }
 
-
-int visited[MAX_CITIES];
-int tour[MAX_CITIES*2];
-int tour_len;
-void dfs_build(int u) {
-    visited[u]=1;
-    tour[tour_len++]=u;
-    for (int v=0; v<cityCount; ++v) {
-        if (adj[u][v] && !visited[v]) {
-            dfs_build(v);
-            // after returning, go back to u in tour
-            tour[tour_len++]=u;
-        }
-    }
+// reconstruct path using parent
+vector<int> reconstruct(int src, int dst, const vector<int>& parent) {
+    if (dst < 0) return {};
+    vector<int> path;
+    for (int cur = dst; cur != -1; cur = parent[cur]) path.push_back(cur);
+    reverse(path.begin(), path.end());
+    if (!path.empty() && path.front() == src) return path;
+    return {};
 }
 
-void do_q3(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: routeSearch 3 <city_A>\\n"); return;
+// Question 4: meeting point minimizing total connections
+void q4() {
+    cout << "Enter city A:\n> "; string A; getline(cin,A); A = trim(A);
+    cout << "Enter city B:\n> "; string B; getline(cin,B); B = trim(B);
+    cout << "Enter city C:\n> "; string C; getline(cin,C); C = trim(C);
+    if (idx.find(A)==idx.end() || idx.find(B)==idx.end() || idx.find(C)==idx.end()) { cout << "One or more cities not found.\n"; return; }
+    int a = idx[A], b = idx[B], c = idx[C];
+    int n = (int)names.size();
+    vector<int> distA, parentA, distB, parentB, distC, parentC;
+    bfs_full(a, distA, parentA);
+    bfs_full(b, distB, parentB);
+    bfs_full(c, distC, parentC);
+    int best = -1; int bestSum = INT_MAX;
+    for (int cand = 0; cand < n; ++cand) {
+        if (cand==a || cand==b || cand==c) continue;
+        if (distA[cand] == -1 || distB[cand] == -1 || distC[cand] == -1) continue;
+        int sum = distA[cand] + distB[cand] + distC[cand];
+        if (sum < bestSum) { bestSum = sum; best = cand; }
     }
-    char *cityA = argv[2];
-    int ai=-1;
-    for (int i=0;i<cityCount;i++) if (strcmp(cities[i], cityA)==0) ai=i;
-    if (ai==-1) { printf("City not found.\\n"); return; }
-    // reset
-    for (int i=0;i<cityCount;i++) visited[i]=0;
-    tour_len = 0;
-    dfs_build(ai);
-    
-    if (tour_len == 0) { printf("No reachable cities from %s\\n", cityA); return; }
-    print_path(tour, tour_len);
-    int connections = tour_len - 1;
-    printf("smallest number of connection: %d\\n", connections);
-    printf("\\nNote: This route is a simple DFS-based tour (beginner-friendly heuristic). It may not be optimal for all graphs.\\n");
+    if (best == -1) { cout << "No meeting city reachable by all three.\n"; return; }
+    cout << "You three should meet at " << names[best] << "\n";
+    auto pA = reconstruct(a, best, parentA); print_path_indices(pA); cout << " (" << distA[best] << " connections)\n";
+    auto pB = reconstruct(b, best, parentB); print_path_indices(pB); cout << " (" << distB[best] << " connections)\n";
+    auto pC = reconstruct(c, best, parentC); print_path_indices(pC); cout << " (" << distC[best] << " connections)\n";
+    cout << "Total number of connection: " << bestSum << "\n";
 }
 
-
-void do_q4(int argc, char *argv[]) {
-    if (argc < 5) {
-        printf("Usage: routeSearch 4 <city_A> <city_B> <city_C>\\n"); return;
+int main() {
+    cout << "Route Search (STL) - Menu-driven\n";
+    if (!parse_file("flight.txt")) return 1;
+    cout << "Loaded " << names.size() << " cities.\n\n";
+    while (true) {
+        cout << "Menu:\n";
+        cout << " 1) Can I fly from A to B with <= x connections? (shortest route)\n";
+        cout << " 2) Route from A to D through B and C (order not important)\n";
+        cout << " 3) Start at A, visit all reachable cities and return to A (simple DFS tour)\n";
+        cout << " 4) Find meeting city for A, B, C minimizing total connections\n";
+        cout << " 0) Exit\n";
+        cout << "Choose an option: ";
+        string choice; getline(cin, choice);
+        if (choice == "0") { cout << "Goodbye.\n"; break; }
+        else if (choice == "1") q1();
+        else if (choice == "2") q2();
+        else if (choice == "3") q3();
+        else if (choice == "4") q4();
+        else cout << "Invalid choice. Try again.\n";
+        cout << "\n---\n\n";
     }
-    char *A = argv[2], *B = argv[3], *C = argv[4];
-    int ai=-1, bi=-1, ci=-1;
-    for (int i=0;i<cityCount;i++) {
-        if (strcmp(cities[i], A)==0) ai=i;
-        if (strcmp(cities[i], B)==0) bi=i;
-        if (strcmp(cities[i], C)==0) ci=i;
-    }
-    if (ai==-1||bi==-1||ci==-1) { printf("One or more cities not found.\\n"); return; }
-    // compute distances and parents from A,B,C
-    int parentA[MAX_CITIES], distA[MAX_CITIES];
-    int parentB[MAX_CITIES], distB[MAX_CITIES];
-    int parentC[MAX_CITIES], distC[MAX_CITIES];
-    bfs(ai, -1, parentA, distA); 
-    
-
-   
-    auto bfs_full = [&](int src, int parent[], int dist[]) {
-        for (int i=0;i<cityCount;i++) { parent[i]=-1; dist[i]=-1; }
-        int q[MAX_CITIES]; int head=0, tail=0;
-        q[tail++]=src; dist[src]=0; parent[src]=-1;
-        while (head<tail) {
-            int u=q[head++];
-            for (int v=0; v<cityCount; ++v) {
-                if (adj[u][v] && dist[v]==-1) {
-                    dist[v]=dist[u]+1; parent[v]=u; q[tail++]=v;
-                }
-            }
-        }
-    };
-    bfs_full(ai, parentA, distA);
-    bfs_full(bi, parentB, distB);
-    bfs_full(ci, parentC, distC);
-
-    int best = -1; int bestSum = 1000000;
-    for (int candidate=0; candidate<cityCount; ++candidate) {
-        if (candidate==ai || candidate==bi || candidate==ci) continue;
-        if (distA[candidate]==-1 || distB[candidate]==-1 || distC[candidate]==-1) continue;
-        int sum = distA[candidate] + distB[candidate] + distC[candidate];
-        if (sum < bestSum) { bestSum = sum; best = candidate; }
-    }
-    if (best == -1) { printf("No meeting city reachable by all three.\\n"); return; }
-    printf("You three should meet at %s\\n", cities[best]);
-    int path[MAX_CITIES], plen=0;
-    reconstruct_path(ai, best, parentA, path, &plen);
-    printf("Route for first person: "); print_path(path, plen); printf(" (%d connections)\\n", distA[best]);
-    reconstruct_path(bi, best, parentB, path, &plen);
-    printf("Route for second person: "); print_path(path, plen); printf(" (%d connections)\\n", distB[best]);
-    reconstruct_path(ci, best, parentC, path, &plen);
-    printf("Route for third person: "); print_path(path, plen); printf(" (%d connections)\\n", distC[best]);
-    printf("Total number of connection: %d\\n", bestSum);
-}
-
-int main(int argc, char *argv[]) {
-    // initialize
-    for (int i=0;i<MAX_CITIES;i++) for (int j=0;j<MAX_CITIES;j++) adj[i][j]=0;
-    parse_file("flight.txt");
-    if (argc < 2) {
-        printf("Usage: routeSearch <question#> [parameters]\\n");
-        return 0;
-    }
-    int q = atoi(argv[1]);
-    if (q == 1) do_q1(argc, argv);
-    else if (q == 2) do_q2(argc, argv);
-    else if (q == 3) do_q3(argc, argv);
-    else if (q == 4) do_q4(argc, argv);
-    else printf("Question number must be 1,2,3 or 4\\n");
     return 0;
 }
