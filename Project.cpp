@@ -10,7 +10,7 @@
 
 using namespace std;
 
-
+//This is for trim helpin
 static inline string ltrim(string s) {
     s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch){ return !isspace(ch); }));
     return s;
@@ -21,7 +21,7 @@ static inline string rtrim(string s) {
 }
 static inline string trim(string s) { return rtrim(ltrim(s)); }
 
-
+// This is the Graph:  map city name -> index, adjacency list of indices
 vector<string> names;
 unordered_map<string,int> idx;
 vector<vector<int>> adj;
@@ -37,7 +37,7 @@ int get_index(const string &name) {
     return id;
 }
 
-
+// This is for giving roles for flight.txt. 
 bool parse_file(const string &filename) {
     ifstream fin(filename);
     if (!fin.is_open()) {
@@ -78,7 +78,7 @@ bool parse_file(const string &filename) {
     return true;
 }
 
-
+// BFS returning path vector of indices. Empty vector means that is is unreachable
 vector<int> bfs_path(int src, int dst) {
     if (src < 0 || dst < 0) return {};
     int n = (int)names.size();
@@ -134,6 +134,7 @@ void q1() {
 }
 
 
+// Helper to join two paths where p1 end == p2 start
 vector<int> join_paths(const vector<int>& p1, const vector<int>& p2) {
     if (p1.empty() || p2.empty()) return {};
     if (p1.back() != p2.front()) return {};
@@ -201,7 +202,7 @@ void q3() {
     cout << "\nNote: This route is a simple DFS-based heuristic and may not be optimal.\n";
 }
 
-
+// Helper BFS full distances and parents from a source
 void bfs_full(int src, vector<int>& dist, vector<int>& parent) {
     int n = (int)names.size();
     dist.assign(n, -1); parent.assign(n, -1);
