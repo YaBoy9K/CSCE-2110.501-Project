@@ -256,6 +256,7 @@ void q4() {
     cout << "Total number of connection: " << bestSum << "\n";
 }
 
+// This is the MAIN PROGRAM LOOP
 int main() {
     cout << "Route Search (STL) - Menu-driven\n";
     if (!parse_file("flight.txt")) return 1;
