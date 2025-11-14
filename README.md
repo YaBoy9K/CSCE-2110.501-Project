@@ -4,5 +4,5 @@ Route Search - README
 Files included:
  - routeSearch_STL.cpp :  C++ source with interactive menu
  - flight.txt          : input flight data 
- - README_STL.txt      : this file
- - REPORT_STL.txt      :  project report
+ - README.txt      : this file
+ - REPORT.txt      :  project report
