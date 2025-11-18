@@ -15,8 +15,8 @@ static inline string ltrim(string s){ s.erase(s.begin(), find_if(s.begin(), s.en
 static inline string rtrim(string s){ s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !isspace(ch);}).base(), s.end()); return s;}
 static inline string trim(string s){ return rtrim(ltrim(s)); }
 
-vector<string> names;
-unordered_map<string,int> idx;
+vector<string> names; // this is for storing the city name that are read from the file
+unordered_map<string,int> idx; 
 vector<vector<int>> adj;
 // This will be to return the index of a city also if it doesnt exist.
 int get_index(const string &name){
