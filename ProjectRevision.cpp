@@ -111,9 +111,11 @@ vector<int> bfs_path(int src,int dst){
     int n=names.size();
     vector<int> parent(n,-1),dist(n,-1);
     queue<int>q; q.push(src); dist[src]=0;
+
+    // BFS treversing 
     while(!q.empty()){
         int u=q.front(); q.pop();
-        if(u==dst) break;
+        if(u==dst) break; // stops if the destination is reached early
         for(int v:adj[u]){
             if(dist[v]==-1){
                 dist[v]=dist[u]+1;
@@ -129,7 +131,7 @@ vector<int> bfs_path(int src,int dst){
     return p;
 }
 
-// Print path using the names
+// Print path using the city names
 void print_path_indices(const vector<int>& path){
     for(int i=0;i<path.size();i++){
         cout<<names[path[i]];
