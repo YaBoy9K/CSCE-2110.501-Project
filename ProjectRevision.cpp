@@ -25,7 +25,7 @@ int get_index(const string &name){
     int id = names.size();
     names.push_back(name);
     idx[name]=id;
-    adj.emplace_back();
+    adj.emplace_back(); // create adjacency list bucket
     return id;
 }
 
