@@ -11,8 +11,14 @@
 using namespace std;
 
 // trim helpers
-static inline string ltrim(string s){ s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch){ return !isspace(ch);})); return s;}
-static inline string rtrim(string s){ s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !isspace(ch);}).base(), s.end()); return s;}
+static inline string ltrim(string s){ 
+    s.erase(s.begin(), find_if(s.begin(), s.end(), [](unsigned char ch){ return !isspace(ch);})); 
+    return s;
+}
+static inline string rtrim(string s){ 
+    s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !isspace(ch);}).base(), s.end()); 
+    return s;
+}
 static inline string trim(string s){ return rtrim(ltrim(s)); }
 
 vector<string> names; // this is for storing the city name that are read from the file
