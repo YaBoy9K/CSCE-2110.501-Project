@@ -83,6 +83,7 @@ string extractCity(const string &s){
     return trim(s.substr(0,pos));
 }
 
+// country groupibg
 struct CountryGroup{
     string countryName;
     vector<int> cityIndices;
@@ -90,18 +91,23 @@ struct CountryGroup{
 
 vector<CountryGroup> countries;
 
+// this si to group th citys by the country
 void buildCountries(){
-    unordered_map<string,int> mp;
+    unordered_map<string,int> mp; // country to index
+    
     for(int i=0;i<names.size();i++){
         string c=extractCountry(names[i]);
+
+        // if the country not has been seen yet than create a entry
         if(mp.find(c)==mp.end()){
             mp[c]=countries.size();
             countries.push_back({c,{}});
         }
+        //adds the city to that country
         countries[mp[c]].cityIndices.push_back(i);
     }
 }
-
+// Prints all of the countries
 void printCountries(){
     cout<<"List of countrys:\n";
     for(int i=0;i<countries.size();i++){
@@ -110,6 +116,7 @@ void printCountries(){
     cout<<"...\n";
 }
 
+// This is to print all of the citys in a selected country
 void printCitiesFromCountry(int c){
     cout<<"List of citys\n";
     for(int i=0;i<countries[c].cityIndices.size();i++){
