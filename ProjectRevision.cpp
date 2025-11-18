@@ -16,33 +16,43 @@ static inline string rtrim(string s){ s.erase(find_if(s.rbegin(), s.rend(), [](u
 static inline string trim(string s){ return rtrim(ltrim(s)); }
 
 vector<string> names; // this is for storing the city name that are read from the file
-unordered_map<string,int> idx; 
-vector<vector<int>> adj;
+unordered_map<string,int> idx; // map the city names
+vector<vector<int>> adj; // adj list of the graph
+
 // This will be to return the index of a city also if it doesnt exist.
 int get_index(const string &name){
     auto it = idx.find(name);
     if(it!=idx.end()) return it->second;
-    int id = names.size();
-    names.push_back(name);
+    
+    int id = names.size(); // new index
+    names.push_back(name); // this is to store the city
     idx[name]=id;
     adj.emplace_back(); // create adjacency list bucket
     return id;
 }
 
+// This is to read the flight.txt file and to build the adjacency lists here
 bool parse_file(const string &filename){
     ifstream fin(filename);
     if(!fin.is_open()) return false;
+    
     string line;
-    int current=-1;
-    bool expectTo=false;
+    int current=-1;             // for the index of the last "From" city
+    bool expectTo=false;        // marks if the upcoming lines should be proccesed as "To" entries
+    
     while(getline(fin,line)){
         string s=trim(line);
-        if(s.empty()){ expectTo=false; continue; }
-        if(s.rfind("From:",0)==0){
+        if(s.empty()){          // blanki line resets state
+            expectTo=false;
+        continue; 
+    }
+        
+        if(s.rfind("From:",0)==0){    // this is to match the lines thast are stargin with "From:"
             string city=trim(s.substr(5));
             current=get_index(city);
             expectTo=false;
-        }else if(s.rfind("To",0)==0){
+        }
+        else if(s.rfind("To",0)==0){  // matches the "To" section of this
             auto pos=s.find(':');
             if(pos!=string::npos){
                 string rest=trim(s.substr(pos+1));
@@ -52,7 +62,8 @@ bool parse_file(const string &filename){
                 }
             }
             expectTo=true;
-        }else if(expectTo){
+        }
+        else if(expectTo){ // more "To" citys below the main line
             int id=get_index(s);
             if(current>=0) adj[current].push_back(id);
         }
