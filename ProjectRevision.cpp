@@ -129,6 +129,7 @@ vector<int> bfs_path(int src,int dst){
     return p;
 }
 
+// Print path using the names
 void print_path_indices(const vector<int>& path){
     for(int i=0;i<path.size();i++){
         cout<<names[path[i]];
@@ -137,6 +138,7 @@ void print_path_indices(const vector<int>& path){
     cout<<"\n";
 }
 
+// This is for selecting the (From) country then city then (To) country then city
 void q1(){
     string t;
 
@@ -173,7 +175,7 @@ int main(){
         cout<<"Could not load flight.txt\n";
         return 1;
     }
-    buildCountries();
+    buildCountries(); // This is to build country grouping
 
     while(true){
         cout<<"\nMenu:\n";
