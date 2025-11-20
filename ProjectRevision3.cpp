@@ -261,7 +261,7 @@ void q2() {
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
 
-    // <<< ADDED CHECK: starting city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cA].empty()) {
         cout << "This location doesn't have outgoing connections at this time.\n";
         return;
@@ -296,7 +296,7 @@ void q2() {
                 }
     } while (fail || cB > countries[tmpB].size()-1 || cB < 0);
 
-    // <<< ADDED CHECK: second city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cB].empty()) {
         cout << "This location doesn't have outgoing connections at this time.\n";
         return;
@@ -331,7 +331,7 @@ void q2() {
                 }
     } while(fail || cC > countries[tmpA].size()-1 || cC < 0);
 
-    // <<< ADDED CHECK: third city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cC].empty()) {
         cout << "This location doesn't have outgoing connections at this time.\n";
         return;
@@ -366,7 +366,7 @@ void q2() {
                 }
     } while (fail || cD > countries[tmpD].size()-1 || cD < 0);
 
-    // <<< ADDED CHECK: destination city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cD].empty()) {
         cout << "This location doesn't have outgoing connections at this time.\n";
         return;
@@ -457,7 +457,7 @@ void q3() {
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
 
-    // <<< ADDED CHECK: starting city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cA].empty()) {
         cout << "This location doesn't have outgoing connections at this time.\n";
         return;
@@ -545,7 +545,7 @@ void q4() {
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
 
-    // <<< ADDED CHECK: first participant's city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cA].empty()) {
         cout << "First participant's city has no outgoing connections.\n";
         return;
@@ -579,7 +579,7 @@ void q4() {
                 }
     } while (fail || cB > countries[tmpB].size()-1 || cB < 0);
 
-    // <<< ADDED CHECK: second participant's city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cB].empty()) {
         cout << "Second participant's city has no outgoing connections.\n";
         return;
@@ -613,7 +613,7 @@ void q4() {
                 }
     } while(fail || cC > countries[tmpA].size()-1 || cC < 0);
 
-    // <<< ADDED CHECK: third participant's city has no outgoing connections >>>
+    // This is if the location selected doesnt have any outbound loactions 
     if (adj[cC].empty()) {
         cout << "Third participant's city has no outgoing connections.\n";
         return;
