@@ -1,3 +1,4 @@
+// ProjectRevision3.cpp
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -180,11 +181,6 @@ void q1(){
     
     int fromCity=countries[fromC].cityIndices[a];
 
-    if (adj[fromCity].empty()) {
-    cout << "This location doesn't have outgoing connections at this time.\n";
-    return;
-}
-
     printCountries();
     int toC;
     do{          
@@ -264,7 +260,13 @@ void q2() {
                                 fail = true;
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
-    
+
+    // <<< ADDED CHECK: starting city has no outgoing connections >>>
+    if (adj[cA].empty()) {
+        cout << "This location doesn't have outgoing connections at this time.\n";
+        return;
+    }
+
     printCountries();
     int tmpB;
     string B;
@@ -293,6 +295,12 @@ void q2() {
                                 fail = true;
                 }
     } while (fail || cB > countries[tmpB].size()-1 || cB < 0);
+
+    // <<< ADDED CHECK: second city has no outgoing connections >>>
+    if (adj[cB].empty()) {
+        cout << "This location doesn't have outgoing connections at this time.\n";
+        return;
+    }
     
     printCountries();
     int tmpC;
@@ -323,6 +331,12 @@ void q2() {
                 }
     } while(fail || cC > countries[tmpA].size()-1 || cC < 0);
 
+    // <<< ADDED CHECK: third city has no outgoing connections >>>
+    if (adj[cC].empty()) {
+        cout << "This location doesn't have outgoing connections at this time.\n";
+        return;
+    }
+
     printCountries();
     int tmpD;
     string D;
@@ -351,6 +365,12 @@ void q2() {
                                 fail = true;
                 }
     } while (fail || cD > countries[tmpD].size()-1 || cD < 0);
+
+    // <<< ADDED CHECK: destination city has no outgoing connections >>>
+    if (adj[cD].empty()) {
+        cout << "This location doesn't have outgoing connections at this time.\n";
+        return;
+    }
 
 
     //int a = idx[A], b = idx[B], c = idx[C], d = idx[D]; //set indexes
@@ -437,6 +457,12 @@ void q3() {
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
 
+    // <<< ADDED CHECK: starting city has no outgoing connections >>>
+    if (adj[cA].empty()) {
+        cout << "This location doesn't have outgoing connections at this time.\n";
+        return;
+    }
+
     int n = (int)names.size();
 
     vector<int> visited(n,0), tour; //visited is names.length long and is full of 0,   makes tour
@@ -518,6 +544,12 @@ void q4() {
                                 fail = true;
                 }
     } while (fail || cA > countries[tmpA].size()-1 || cA < 0);
+
+    // <<< ADDED CHECK: first participant's city has no outgoing connections >>>
+    if (adj[cA].empty()) {
+        cout << "First participant's city has no outgoing connections.\n";
+        return;
+    }
     
     printCountries();
     int tmpB;
@@ -546,6 +578,12 @@ void q4() {
                                 fail = true;
                 }
     } while (fail || cB > countries[tmpB].size()-1 || cB < 0);
+
+    // <<< ADDED CHECK: second participant's city has no outgoing connections >>>
+    if (adj[cB].empty()) {
+        cout << "Second participant's city has no outgoing connections.\n";
+        return;
+    }
     
     printCountries();
     int tmpC;
@@ -574,6 +612,12 @@ void q4() {
                                 fail = true;
                 }
     } while(fail || cC > countries[tmpA].size()-1 || cC < 0);
+
+    // <<< ADDED CHECK: third participant's city has no outgoing connections >>>
+    if (adj[cC].empty()) {
+        cout << "Third participant's city has no outgoing connections.\n";
+        return;
+    }
     int n = (int)names.size();
     vector<int> distA, parentA, distB, parentB, distC, parentC;
 
