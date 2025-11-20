@@ -180,6 +180,11 @@ void q1(){
     
     int fromCity=countries[fromC].cityIndices[a];
 
+    if (adj[fromCity].empty()) {
+    cout << "This location doesn't have outgoing connections at this time.\n";
+    return;
+}
+
     printCountries();
     int toC;
     do{          
