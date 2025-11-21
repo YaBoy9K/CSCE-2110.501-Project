@@ -5,7 +5,7 @@ Files included:
  - ProjectRevision3.cpp :  C++ source with interactive menu
  - flight.txt          : input flight data 
  - README.txt      : this file
- - REPORT.txt      :  project report
+ - REPORT.pdf      :  project report
 
 Run:
   - Make sure flight.txt is in the same folder as the executable, Or change Line if(!parse_file("flight.txt")) to match the file path
