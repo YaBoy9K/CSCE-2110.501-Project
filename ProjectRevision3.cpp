@@ -1,4 +1,9 @@
 // ProjectRevision3.cpp
+/**
+ * Alan Wu, Caleb Layfield, Zion Welsh
+ * Group #15
+ * CSCE 2110.501 Final Project
+ */
 #include <iostream>
 #include <fstream>
 #include <string>
