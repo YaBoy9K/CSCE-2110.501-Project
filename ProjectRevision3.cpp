@@ -477,7 +477,7 @@ void q3() {
 
     print_path_indices(tour);
     cout << "smallest number of connection: " << ((int)tour.size() - 1) << "\n";
-    cout << "\nNote: This route is a simple DFS based heuristic and may not be optimal.\n";
+    
 }
 
 /**
